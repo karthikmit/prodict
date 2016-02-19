@@ -11,20 +11,20 @@ import java.util.logging.Logger;
  */
 public class ProDict {
 
-    private ProDictListMap cacheEntries;
-    private int capacity;
-    private Logger logger = Logger.getLogger(ProDict.class.getTypeName());
-    private PersistenceManager persistenceManager;
+    private final ProDictListMap cacheEntries;
+    private final int capacity;
+    private final Logger logger = Logger.getLogger(ProDict.class.getTypeName());
+    private final PersistenceManager persistenceManager;
 
-    public ProDict(int capacity) {
+    public ProDict(int capacity, String directoryPath) {
         this.capacity = capacity;
         cacheEntries = new ProDictListMap(capacity);
-        persistenceManager = new PersistenceManager();
+        persistenceManager = new PersistenceManager(directoryPath);
     }
 
     /**
      * Put operation makes sure the capacity constraint is met. Otherwise, it would evict an entry and place the new entry.
-     * @param entry
+     * @param entry which should be added to the cache.
      */
     public void put(Entry entry) {
         ensureCapacity(entry.getKey());
@@ -49,18 +49,25 @@ public class ProDict {
     /**
      * This method would try to fetch from InMemory, if not found, will check in FileSystem.
      * TODO: Bloom filter can be implemented to avoid unessential lookup in the file system.
-     * @param key
-     * @return
+     * @param key for the respective entry
+     * @return Entry for the respective key will be returned, if key not present or expired, null will be thrown.
      */
     public Entry get(String key) {
         Entry entry = cacheEntries.get(key);
+
         if(entry == null) {
             entry = checkInFileSystem(key);
         }
 
         if(entry != null) {
             cacheEntries.remove(entry.getKey());
-            cacheEntries.put(entry.getKey(), entry);
+
+            // If not expired, keep it at the top of the list, as it is LRU Cache ..
+            if(!PersistenceManager.isExpired(entry)) {
+                cacheEntries.put(entry.getKey(), entry);
+            } else {
+                return null;
+            }
         }
         return entry;
     }

@@ -6,12 +6,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Entry in the internal ProDict LinkedHashMap
+ * Entry is the unit of data which can be stored in ProDict Cache.
+ * As of now, expire time shall be specified only on created time basis. Future it may be extended to access time also.
+ * Entry setters can be used in fluent style, to avoid the need for multiple constructors.
  */
 public class Entry {
 
     private static final Pattern ACCEPTABLE_PATTERN = Pattern.compile("[a-z0-9_-]{1,120}");
-    private Date createdAt = new Date();
+    private final Date createdAt = new Date();
     private String key;
     private String value;
 
@@ -80,9 +82,8 @@ public class Entry {
 
         Entry entry = (Entry) o;
 
-        if (!key.equals(entry.key)) return false;
+        return key.equals(entry.key);
 
-        return true;
     }
 
     @Override

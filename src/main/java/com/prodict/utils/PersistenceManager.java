@@ -1,23 +1,30 @@
 package com.prodict.utils;
 
-import com.prodict.Entry;
 import com.google.common.hash.Hashing;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.prodict.Entry;
 import org.apache.commons.io.FileUtils;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Created by karthik on 2/18/16.
+ * PersistenceManager takes care of persisting cache entries in Local FileSystem.
  */
 public class PersistenceManager {
 
-    private static final String directoryPath = "/data/prodict/";
+    private final String directoryPath;
     private static final String filePrefix = "bucket_";
     private static final String fileSuffix = ".bin";
+
+    public PersistenceManager(String directoryPath) {
+        this.directoryPath = directoryPath;
+    }
+
 
     public void persist(Entry entry) throws IOException {
         String filePath = getRandomFileName(entry.getKey());
@@ -31,16 +38,17 @@ public class PersistenceManager {
                 e.printStackTrace();
             }
         }
-        Set<Entry> allEntries = new HashSet<Entry>(10, 0.75f);
+        Map<String, Entry> allEntries = new HashMap<>(10, 0.75f);
         if(!fileContent.equals("")) {
-            allEntries = new Gson().fromJson(fileContent, new TypeToken<HashSet<Entry>>() {
+            allEntries = new Gson().fromJson(fileContent, new TypeToken<HashMap<String, Entry>>() {
 
             }.getType());
         }
-        if(allEntries.contains(entry)) {
-            allEntries.remove(entry);
-        }
-        allEntries.add(entry);
+
+        allEntries.put(entry.getKey(), entry);
+
+        // Remove all the expired values from the list before writing ...
+        allEntries.values().removeIf(PersistenceManager::isExpired);
         FileUtils.writeStringToFile(file, new Gson().toJson(allEntries));
     }
 
@@ -61,17 +69,27 @@ public class PersistenceManager {
                 e.printStackTrace();
             }
         }
-        Set<Entry> allEntries = new HashSet<Entry>();
+        Map<String, Entry> allEntries = new HashMap<>();
         if(!fileContent.equals("")) {
-            allEntries = new Gson().fromJson(fileContent, new TypeToken<HashSet<Entry>>() {
+            allEntries = new Gson().fromJson(fileContent, new TypeToken<HashMap<String, Entry>>() {
 
             }.getType());
         }
-        for(Entry entry : allEntries) {
-            if(entry.getKey().equals(key)) {
+        if(allEntries.containsKey(key)) {
+            final Entry entry = allEntries.get(key);
+            if(!isExpired(entry)) {
                 return entry;
             }
         }
+
         return null;
+    }
+
+    public static boolean isExpired(Entry entry) {
+        long timeNow = new Date().getTime();
+        long createdTime = entry.getCreatedAt().getTime();
+
+        long expiresIn = createdTime + entry.getExpiresInUnit().toMillis(entry.getExpiresIn());
+        return expiresIn <= timeNow;
     }
 }

@@ -9,16 +9,16 @@ import java.util.logging.Logger;
 /**
  * ProDictList Map is kind of LinkedHashMap with added features like removeLastEntry, etc.
  */
-public class ProDictListMap {
+class ProDictListMap {
 
-    private Logger logger = Logger.getLogger(ProDictListMap.class.getTypeName());
-    private Deque<Entry> entriesList;
-    private Map<String, Entry> entriesMap;
+    private final Logger logger = Logger.getLogger(ProDictListMap.class.getTypeName());
+    private final Deque<Entry> entriesList;
+    private final Map<String, Entry> entriesMap;
     private int currentSize = 0;
 
     public ProDictListMap(int capacity) {
-        entriesList = new ConcurrentLinkedDeque<Entry>();
-        entriesMap = new ConcurrentHashMap<String, Entry>(capacity, 0.75f);
+        entriesList = new ConcurrentLinkedDeque<>();
+        entriesMap = new ConcurrentHashMap<>(capacity, 0.75f);
     }
 
     public void put(String key, Entry entry) {
@@ -36,6 +36,7 @@ public class ProDictListMap {
         if(entry != null) {
             entriesList.remove(entry);
             entriesMap.remove(entry);
+            currentSize--;
         }
     }
 
@@ -51,6 +52,7 @@ public class ProDictListMap {
         logger.info("Removing Last Entry");
         Entry v = entriesList.pollLast();
         entriesMap.remove(v.getKey());
+        currentSize--;
         return v;
     }
 
