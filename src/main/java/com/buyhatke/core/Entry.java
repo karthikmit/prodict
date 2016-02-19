@@ -1,4 +1,4 @@
-package com.prodict;
+package com.buyhatke.core;
 
 import java.util.Date;
 import java.util.concurrent.TimeUnit;

@@ -1,10 +1,10 @@
-import com.prodict.Entry;
-import com.prodict.ProDict;
+import com.buyhatke.core.Entry;
+import com.buyhatke.core.ProDict;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.Deque;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class ProDictTests {
 
-    private final String directoryPath = "/data/prodict/";
+    private final String directoryPath = "/tmp/prodict/";
 
     @Test
     public void testProDictGetAndPut() {
@@ -49,14 +49,14 @@ public class ProDictTests {
 
         final String value = "Hello World!";
         final String key = "Test-Karthik-1".toLowerCase();
-        Entry entry = new Entry().setExpiresIn(5).setExpiresInUnit(TimeUnit.SECONDS)
+        Entry entry = new Entry().setExpiresIn(1).setExpiresInUnit(TimeUnit.SECONDS)
                 .setKey(key).setValue(value);
         proDict.put(entry);
-        entry = new Entry().setExpiresIn(5).setExpiresInUnit(TimeUnit.SECONDS)
+        entry = new Entry().setExpiresIn(1).setExpiresInUnit(TimeUnit.SECONDS)
                 .setKey(key + "_somerandomstuff").setValue(value);
         proDict.put(entry);
 
-        Thread.sleep(11 * 1000);
+        Thread.sleep(3 * 1000);
         Assert.assertEquals(proDict.get(key), null);
         proDict.flush();
     }
@@ -91,20 +91,13 @@ public class ProDictTests {
                 .setKey("Test-Karthik-2".toLowerCase()).setValue("Hello world 2");
         proDict.put(entry);
 
-        Deque<Entry> all = proDict.getAll();
+        List<Entry> all = proDict.getAll();
 
-        Assert.assertEquals(all.getFirst().getKey(), "Test-Karthik-2".toLowerCase());
+        Assert.assertEquals(all.get(0).getKey(), "Test-Karthik-2".toLowerCase());
 
         // Fetch call should rearrange the inner entries.
         proDict.get("Test-Karthik-1".toLowerCase());
         all = proDict.getAll();
-        Assert.assertEquals(all.getFirst().getKey(), "Test-Karthik-1".toLowerCase());
-    }
-
-    @Test
-    public void dummyReadTests() throws IOException {
-        ProDict dict = new ProDict(10, directoryPath);
-
-        System.out.println(dict.get("test-mother").getValue());
+        Assert.assertEquals(all.get(0).getKey(), "Test-Karthik-1".toLowerCase());
     }
 }

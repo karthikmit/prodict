@@ -1,17 +1,21 @@
-package com.prodict;
+package com.buyhatke.core;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
 import java.util.Deque;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.logging.Logger;
 
 /**
- * ProDictList Map is kind of LinkedHashMap with added features like removeLastEntry, etc.
+ * ProDictList Map is sort of LinkedHashMap with added features like removeLastEntry, etc.
  */
 class ProDictListMap {
 
-    private final Logger logger = Logger.getLogger(ProDictListMap.class.getTypeName());
+    private final Logger logger = LoggerFactory.getLogger(ProDictListMap.class);
     private final Deque<Entry> entriesList;
     private final Map<String, Entry> entriesMap;
     private int currentSize = 0;
@@ -56,7 +60,9 @@ class ProDictListMap {
         return v;
     }
 
-    public Deque<Entry> getAll() {
-        return entriesList;
+    public List<Entry> getAll() {
+        List<Entry> entriesListNew = new ArrayList<>();
+        entriesListNew.addAll(entriesList);
+        return entriesListNew;
     }
 }

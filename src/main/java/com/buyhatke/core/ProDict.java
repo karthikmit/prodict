@@ -1,10 +1,10 @@
-package com.prodict;
+package com.buyhatke.core;
 
-import com.prodict.utils.PersistenceManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Deque;
-import java.util.logging.Logger;
+import java.util.List;
 
 /**
  * ProDict is the core class.
@@ -13,7 +13,7 @@ public class ProDict {
 
     private final ProDictListMap cacheEntries;
     private final int capacity;
-    private final Logger logger = Logger.getLogger(ProDict.class.getTypeName());
+    private final Logger logger = LoggerFactory.getLogger(ProDict.class);
     private final PersistenceManager persistenceManager;
 
     public ProDict(int capacity, String directoryPath) {
@@ -29,21 +29,6 @@ public class ProDict {
     public void put(Entry entry) {
         ensureCapacity(entry.getKey());
         cacheEntries.put(entry.getKey(), entry);
-    }
-
-    private void ensureCapacity(String key) {
-        if(cacheEntries.containsKey(key)) return;
-
-        final int size = cacheEntries.size();
-        if(size >= capacity) {
-            logger.info("Exceeded Capacity, So, eviction starts.");
-            evictLRUEntry();
-        }
-    }
-
-    private void evictLRUEntry() {
-        Entry entry = cacheEntries.removeLastEntry();
-        persistEntryInFileSystem(entry);
     }
 
     /**
@@ -72,6 +57,36 @@ public class ProDict {
         return entry;
     }
 
+    /**
+     * This would return null, if the key is not at present at InMemory Cache.
+     * It wouldn't check the file system for evicted entries.
+     * @param key for the respective entry
+     * @return Entry for the respective key will be returned, if key not present or expired, null will be thrown.
+     */
+    public Entry getOnlyIfInMemory(String key) {
+        return cacheEntries.get(key);
+    }
+
+    /**
+     * This method shall be used only for testing, as it would just return the cache entries only in memory.
+     * @return List of all the entries, right now in the cache, In Memory.
+     */
+    public List<Entry> getAll() {
+        return cacheEntries.getAll();
+    }
+
+    /**
+     * Flush would make sure all the cache entries which are In Memory are properly written to the file system.
+     * Failing to call this method, would cause active entries in the cache not updated in the file system.
+     * TODO: Need to implement automated handling of persisting cache entries.
+     * @throws IOException
+     */
+    public void flush() throws IOException {
+        for(Entry entry : cacheEntries.getAll()) {
+            persistenceManager.persist(entry);
+        }
+    }
+
     private Entry checkInFileSystem(String key) {
         return persistenceManager.fetch(key);
     }
@@ -84,17 +99,18 @@ public class ProDict {
         }
     }
 
-    public Entry getOnlyIfInMemory(String key) {
-        return cacheEntries.get(key);
-    }
+    private void ensureCapacity(String key) {
+        if(cacheEntries.containsKey(key)) return;
 
-    public Deque<Entry> getAll() {
-        return cacheEntries.getAll();
-    }
-
-    public void flush() throws IOException {
-        for(Entry entry : cacheEntries.getAll()) {
-            persistenceManager.persist(entry);
+        final int size = cacheEntries.size();
+        if(size >= capacity) {
+            logger.info("Exceeded Capacity, So, eviction starts.");
+            evictLRUEntry();
         }
+    }
+
+    private void evictLRUEntry() {
+        Entry entry = cacheEntries.removeLastEntry();
+        persistEntryInFileSystem(entry);
     }
 }

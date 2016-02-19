@@ -1,10 +1,11 @@
-package com.prodict.utils;
+package com.buyhatke.core;
 
-import com.google.common.hash.Hashing;
+import com.buyhatke.utils.FileUtils;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import com.prodict.Entry;
-import org.apache.commons.io.FileUtils;
+import com.buyhatke.utils.Hashing;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -14,12 +15,14 @@ import java.util.Map;
 
 /**
  * PersistenceManager takes care of persisting cache entries in Local FileSystem.
+ * DirectoryPath should have proper permissions so that ProDict could be able to create sub-folders and files.
  */
 public class PersistenceManager {
 
     private final String directoryPath;
     private static final String filePrefix = "bucket_";
     private static final String fileSuffix = ".bin";
+    private final Logger logger = LoggerFactory.getLogger(PersistenceManager.class);
 
     public PersistenceManager(String directoryPath) {
         this.directoryPath = directoryPath;
@@ -27,6 +30,7 @@ public class PersistenceManager {
 
 
     public void persist(Entry entry) throws IOException {
+        logger.debug("Persisting Entry started: " + entry);
         String filePath = getRandomFileName(entry.getKey());
         String fileContent = "";
         final File file = new File(filePath);
@@ -50,10 +54,11 @@ public class PersistenceManager {
         // Remove all the expired values from the list before writing ...
         allEntries.values().removeIf(PersistenceManager::isExpired);
         FileUtils.writeStringToFile(file, new Gson().toJson(allEntries));
+        logger.debug("Persisting Entry completed: " + entry);
     }
 
     private String getRandomFileName(String key) {
-        int bucket = Math.abs(Hashing.sha256().hashBytes(key.getBytes()).asInt() % 65535);
+        int bucket = Math.abs(Hashing.hash(key) % 65535);
         return directoryPath + filePrefix + bucket + fileSuffix;
     }
 
@@ -66,6 +71,7 @@ public class PersistenceManager {
                 fileContent = FileUtils.readFileToString(file);
             } catch (IOException e) {
                 // It should never happen.
+                logger.error("Reading file failed: " + file.getAbsolutePath());
                 e.printStackTrace();
             }
         }
@@ -79,6 +85,8 @@ public class PersistenceManager {
             final Entry entry = allEntries.get(key);
             if(!isExpired(entry)) {
                 return entry;
+            } else {
+                logger.debug("Entry expired: " + entry);
             }
         }
 
@@ -89,7 +97,11 @@ public class PersistenceManager {
         long timeNow = new Date().getTime();
         long createdTime = entry.getCreatedAt().getTime();
 
-        long expiresIn = createdTime + entry.getExpiresInUnit().toMillis(entry.getExpiresIn());
+        final Integer duration = entry.getExpiresIn();
+
+        // If expire duration is 0, it means it never expires.
+        if(duration == 0) return false;
+        long expiresIn = createdTime + entry.getExpiresInUnit().toMillis(duration);
         return expiresIn <= timeNow;
     }
 }
