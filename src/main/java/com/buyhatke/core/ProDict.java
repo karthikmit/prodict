@@ -47,7 +47,7 @@ public class ProDict {
             if(entry != null) {
                 // If not expired, keep it at the top of the list, as it is LRU Cache ..
                 if(!PersistenceManager.isExpired(entry)) {
-                    cacheListMap.put(entry.getKey(), entry);
+                    this.put(entry);
                 } else {
                     return null;
                 }
@@ -118,7 +118,7 @@ public class ProDict {
         }
     }
 
-    private void ensureCapacity(String key) {
+    private synchronized void ensureCapacity(String key) {
         if(cacheListMap.containsKey(key)) return;
 
         final int size = cacheListMap.size();
