@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class ProDictTests {
 
-    private final String directoryPath = "/tmp/prodict/";
+    private final String directoryPath = "/tmp/";
 
     @Test
     public void testProDictGetAndPut() {
@@ -98,6 +98,6 @@ public class ProDictTests {
         // Fetch call should rearrange the inner entries.
         proDict.get("Test-Karthik-1".toLowerCase());
         all = proDict.getAll();
-        Assert.assertEquals(all.get(0).getKey(), "Test-Karthik-1".toLowerCase());
+        Assert.assertEquals("Test-Karthik-1".toLowerCase(), all.get(0).getKey());
     }
 }

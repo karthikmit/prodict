@@ -11,24 +11,25 @@ import java.util.List;
  */
 public class ProDict {
 
-    private final ProDictListMap cacheEntries;
+    private final ProDictListMap cacheListMap;
     private final int capacity;
     private final Logger logger = LoggerFactory.getLogger(ProDict.class);
     private final PersistenceManager persistenceManager;
 
     public ProDict(int capacity, String directoryPath) {
         this.capacity = capacity;
-        cacheEntries = new ProDictListMap(capacity);
+        cacheListMap = new ProDictListMap(capacity);
         persistenceManager = new PersistenceManager(directoryPath);
     }
 
     /**
-     * Put operation makes sure the capacity constraint is met. Otherwise, it would evict an entry and place the new entry.
+     * Put operation makes sure the capacity constraint is met.
+     * Otherwise, it would evict an entry and place the new entry.
      * @param entry which should be added to the cache.
      */
     public void put(Entry entry) {
         ensureCapacity(entry.getKey());
-        cacheEntries.put(entry.getKey(), entry);
+        cacheListMap.put(entry.getKey(), entry);
     }
 
     /**
@@ -38,23 +39,41 @@ public class ProDict {
      * @return Entry for the respective key will be returned, if key not present or expired, null will be thrown.
      */
     public Entry get(String key) {
-        Entry entry = cacheEntries.get(key);
+
+        Entry entry = getInMemoryEntry(key);
 
         if(entry == null) {
             entry = checkInFileSystem(key);
-        }
-
-        if(entry != null) {
-            cacheEntries.remove(entry.getKey());
-
-            // If not expired, keep it at the top of the list, as it is LRU Cache ..
-            if(!PersistenceManager.isExpired(entry)) {
-                cacheEntries.put(entry.getKey(), entry);
-            } else {
-                return null;
+            if(entry != null) {
+                // If not expired, keep it at the top of the list, as it is LRU Cache ..
+                if(!PersistenceManager.isExpired(entry)) {
+                    cacheListMap.put(entry.getKey(), entry);
+                } else {
+                    return null;
+                }
             }
         }
+
+
         return entry;
+    }
+
+    private Entry getInMemoryEntry(String key) {
+        Entry entry = cacheListMap.get(key);
+
+        if(entry != null) {
+
+            // If not expired, keep it at the top of the list, as it is LRU Cache ..
+            if(PersistenceManager.isExpired(entry)) {
+                return null;
+            }
+            // Move the entry to the top of the list. It means it is Most recently used.
+            // TODO: Can some other DS can be used, like Finger Tree ?
+            cacheListMap.moveEntryToHead(entry);
+            return entry;
+        }
+
+        return null;
     }
 
     /**
@@ -64,7 +83,7 @@ public class ProDict {
      * @return Entry for the respective key will be returned, if key not present or expired, null will be thrown.
      */
     public Entry getOnlyIfInMemory(String key) {
-        return cacheEntries.get(key);
+        return getInMemoryEntry(key);
     }
 
     /**
@@ -72,7 +91,7 @@ public class ProDict {
      * @return List of all the entries, right now in the cache, In Memory.
      */
     public List<Entry> getAll() {
-        return cacheEntries.getAll();
+        return cacheListMap.getAll();
     }
 
     /**
@@ -82,7 +101,7 @@ public class ProDict {
      * @throws IOException
      */
     public void flush() throws IOException {
-        for(Entry entry : cacheEntries.getAll()) {
+        for(Entry entry : cacheListMap.getAll()) {
             persistenceManager.persist(entry);
         }
     }
@@ -100,9 +119,9 @@ public class ProDict {
     }
 
     private void ensureCapacity(String key) {
-        if(cacheEntries.containsKey(key)) return;
+        if(cacheListMap.containsKey(key)) return;
 
-        final int size = cacheEntries.size();
+        final int size = cacheListMap.size();
         if(size >= capacity) {
             logger.info("Exceeded Capacity, So, eviction starts.");
             evictLRUEntry();
@@ -110,7 +129,9 @@ public class ProDict {
     }
 
     private void evictLRUEntry() {
-        Entry entry = cacheEntries.removeLastEntry();
-        persistEntryInFileSystem(entry);
+        if(cacheListMap.size() >= capacity) {
+            Entry entry = cacheListMap.removeLastEntry();
+            persistEntryInFileSystem(entry);
+        }
     }
 }
